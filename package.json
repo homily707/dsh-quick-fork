@@ -1,0 +1,45 @@
+{
+	"name": "dsh-quick-fork",
+	"description": "Client-only turn editing for the DSH web client: a per-turn edit button opens a dialog, forks the session before that turn through the official client session API (ctx.sessions.fork), and replays the edited input as the new session's first user message. No host route, no custom events.",
+	"version": "0.1.0",
+	"type": "module",
+	"main": "./index.mjs",
+	"exports": {
+		".": "./index.mjs",
+		"./client": "./client.js",
+		"./cordis.patch.yml": "./cordis.patch.yml",
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"index.mjs",
+		"client.js",
+		"cordis.patch.yml",
+		"README.md",
+		"LICENSE"
+	],
+	"scripts": {
+		"test": "node --test"
+	},
+	"dsh": {
+		"bundle": {
+			"patch": "./cordis.patch.yml"
+		},
+		"client": {
+			"platform": "web",
+			"inject": [
+				"@deepseek-ai/dsh-api-session-controller",
+				"@deepseek-ai/dsh-client-ui-conversation",
+				"@deepseek-ai/dsh-client-ui-workspace"
+			]
+		}
+	},
+	"keywords": [
+		"deepseek-harness",
+		"dsh",
+		"plugin",
+		"fork",
+		"message-edit",
+		"client-only"
+	],
+	"license": "MIT"
+}

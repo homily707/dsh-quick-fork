@@ -1,0 +1,9 @@
+# The layer applied when a profile lists this bundle.
+# Install: dsh plugin --profile <name> add link:/path/to/dsh-quick-fork
+#
+# 本包只有浏览器半,这一行的作用只是让 host Loader 收录该包 —— client-modules
+# 从 Loader 条目里发现 dsh.client 声明,才能把 client.js 投递给页面。
+# host 侧的 apply 是空实现,没有任何配置项。
+- insert:
+    - id: quick-fork
+      name: dsh-quick-fork
