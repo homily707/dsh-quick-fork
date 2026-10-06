@@ -15,7 +15,7 @@ globalThis.window = {
 		}
 	}
 }
-/** svgIcon / 样式注入用到的 DOM 最小面。 */
+/** 样式注入与 svgIcon 用到的 DOM 最小面。 */
 globalThis.document = {
 	createElementNS: () => ({ setAttribute() {}, appendChild() {} }),
 	createElement: () => ({ dataset: {}, textContent: "", remove() {} }),
@@ -116,30 +116,44 @@ function find(node, predicate) {
 	return find(node.children, predicate)
 }
 
-test("apply:注册 turn-tail seat 与 shell.overlay 弹窗", () => {
+test("apply:注册 shell.overlay 弹窗(注入器在无 DOM 环境下跳过)", () => {
 	const { ctx, registrations } = createRuntime()
 	plugin.apply(ctx)
-	assert.deepEqual([...registrations.keys()].sort(), ["conversation.chat.turnTail", "shell.overlay"])
-	assert.equal(registrations.get("conversation.chat.turnTail").options.id, "quick-fork")
+	assert.deepEqual([...registrations.keys()], ["shell.overlay"])
 })
 
-test("seat:已闭合回合有按钮,未闭合回合没有", () => {
-	const { ctx, registrations } = createRuntime()
-	plugin.apply(ctx)
-	const seat = registrations.get("conversation.chat.turnTail")
-	const props = seat.options.inject("session-a")
-	assert.deepEqual(props.target(1), { text: "first", boundary: 0, extraBlocks: 0 })
-	assert.equal(props.target(2), undefined)
-	const button = find(seat.Component({ turn: 1, ...props }), (node) => node.type === "button")
-	assert.equal(button.props.className, "qf-iconBtn")
-	assert.equal(seat.Component({ turn: 2, ...props }), null)
+test("textAt:从 fiber 链读出复制键那段原文", () => {
+	const node = {
+		"__reactFiber$test": {
+			memoizedProps: { className: "actions", "data-clock": "start" },
+			return: { memoizedProps: { text: "第一条", time: 1 }, return: null }
+		}
+	}
+	assert.equal(plugin.__test.textAt(node), "第一条")
+	assert.equal(plugin.__test.textAt({}), undefined)
+})
+
+test("mainSessionOf:认会话列表里 retainedBy.mainView 那一行", () => {
+	const ctx = { sessions: { list: { getSnapshot: () => ({ byId: { a: { retainedBy: { sidebar: 1 } }, b: { retainedBy: { mainView: 2 } } } }) } } }
+	assert.equal(plugin.__test.mainSessionOf(ctx), "b")
+	assert.equal(plugin.__test.mainSessionOf({ sessions: {} }), undefined)
+})
+
+test("mainSessionOf:按 byId 快照缓存,快照不变时不重扫", () => {
+	const byId = { a: { retainedBy: { mainView: 1 } } }
+	const ctx = { sessions: { list: { getSnapshot: () => ({ byId }) } } }
+	assert.equal(plugin.__test.mainSessionOf(ctx), "a")
+	// 缓存的是同一份快照的结论:即使列表后来变了,快照没重建就仍按缓存返回。
+	byId.b = { retainedBy: { mainView: 3 } }
+	delete byId.a
+	assert.equal(plugin.__test.mainSessionOf(ctx), "a")
+	assert.equal(plugin.__test.mainSessionOf({ sessions: { list: { getSnapshot: () => ({ byId: { c: { retainedBy: { mainView: 1 } } } }) } } }), "c")
 })
 
 test("submit:官方 fork → retain → prompt → openSession,并释放临时引用", async () => {
 	const { ctx, calls, registrations } = createRuntime()
 	plugin.apply(ctx)
-	const seat = registrations.get("conversation.chat.turnTail").options.inject("session-a")
-	seat.begin(1)
+	plugin.__test.open("session-a", 1)
 
 	const dialog = registrations.get("shell.overlay").Component({})
 	const submit = find(dialog, (node) => node.type === "button" && String(node.props.className).includes("qf-btnPrimary"))
@@ -165,8 +179,7 @@ test("submit:发送失败时保留弹窗并显示错误", async () => {
 		return reference
 	}
 	plugin.apply(ctx)
-	const seat = registrations.get("conversation.chat.turnTail").options.inject("session-a")
-	seat.begin(1)
+	plugin.__test.open("session-a", 1)
 	const overlay = registrations.get("shell.overlay")
 	const submit = find(overlay.Component({}), (node) => node.type === "button" && String(node.props.className).includes("qf-btnPrimary"))
 	await submit.props.onClick()
